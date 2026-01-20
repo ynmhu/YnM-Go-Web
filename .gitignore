@@ -5,9 +5,9 @@
 !/index.php
 !/auth.php
 !/.htaccess
-!/dist
-!/inc
-!/js
-!/uploads
+!/dist/
+!/inc/
+!/js/
+!/uploads/
 !/favicon.ico
 
