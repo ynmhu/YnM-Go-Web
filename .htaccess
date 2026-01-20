@@ -1,0 +1,11 @@
+RewriteEngine On
+RewriteBase /
+
+# 1. Állandó átirányítás: minden index.php-s URL-t átirányítunk
+RewriteCond %{THE_REQUEST} ^[A-Z]{3,9}\ /index\.php
+RewriteRule ^index\.php(?:/(.*))?$ /$1 [R=301,L]
+
+# 2. Minden kérést az index.php-re irányítunk, megtartva a paramétereket
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php [L,QSA]

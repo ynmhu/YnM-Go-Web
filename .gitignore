@@ -3,3 +3,11 @@
 #Ez Megy fel
 !/.gitignore
 !/index.php
+!/auth.php
+!/.htaccess
+!/dist
+!/inc
+!/js
+!/uploads
+!/favicon.ico
+
