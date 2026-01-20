@@ -1,14 +1,29 @@
-#Mindent tiltunk
+# Mindent tiltunk
 *
-#Ez Megy fel
+
+# Ezek mennek fel
 !/.gitignore
 !/index.php
 !/auth.php
+!/config.php
 !/.htaccess
 !/dist/
 !/inc/
 !/js/
 !/uploads/
-/uploads/*
 !/favicon.ico
 
+# Engedélyezzük a mappák tartalmát is
+!**/*.php
+!**/*.js
+!**/*.css
+!**/*.png
+!**/*.jpg
+!**/*.jpeg
+!**/*.gif
+!**/*.ico
+!**/*.svg
+!**/*.txt
+!**/*.html
+!**/*.json
+!**/*.md
