@@ -160,25 +160,20 @@
                         <span class="text-info fw-bold">Goroutines:</span>
                         <span class="text-success fw-bold" id="botLoadAvg">-</span>
                     </div>
-					                    <div class="d-flex justify-content-between align-items-center">
+					  <div class="d-flex justify-content-between align-items-center">
                         <span class="text-info fw-bold">Threads:</span>
                         <span class="text-success fw-bold stat-value" id="botThreads">-</span>
                     </div>
-					
+						<div class="d-flex justify-content-between align-items-center">
+                        <span class="text-info fw-bold">NetData:</span>
+                        <span class="text-success fw-bold stat-value" id="botNetworkTraffic">-</span>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-
-        </div>
-       
-    </div>
-
-<div  id="ynmTrafficChartContainer"  style="margin-top: 15px; display: none;">
-<span class="stat-value" id="botNetworkTraffic">-</span>
-</div>
 
 
 

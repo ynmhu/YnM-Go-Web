@@ -1,13 +1,16 @@
 <?php
-// header.php LEGELEJE
+// index.php
 session_start();
+require_once 'config.php';
+require_once 'auth.php';
+
 
 // DEBUG - session tartalom
 error_log('SESSION CONTENTS: ' . print_r($_SESSION, true));
 
 // alapértelmezések
 date_default_timezone_set('Europe/Bucharest');
-$page = $page ?? 'ynm';
+$page = $_GET['page'] ?? 'ynm';
 $username = $_SESSION['username'] ?? 'Guest';
 $globalRole = $_SESSION['role'] ?? 'user';
 $effectiveRole = $_SESSION['effective_role'] ?? $globalRole;
@@ -17,6 +20,26 @@ $isLoggedIn = isset($_SESSION['username']) && $_SESSION['username'] !== 'Guest';
 error_log('isLoggedIn: ' . ($isLoggedIn ? 'TRUE' : 'FALSE'));
 error_log('username: ' . $username);
 error_log('SESSION at page load: ' . print_r($_SESSION, true));
+
+
+
+
+
+
+
+$page = $_GET['page'] ?? 'ynm';
+   $allowed_pages = ['ynm', 'users', 'channels', 'channel_users', 'database', 'logs', 'plugins', 'profile'];
+   
+   if (!in_array($page, $allowed_pages)) {
+       $page = 'ynm';
+   }
+   
+
+// Jogosultság ellenőrzés
+if (!canAccessPage($page)) {
+    $page = 'ynm';
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="hu">
@@ -40,16 +63,19 @@ error_log('SESSION at page load: ' . print_r($_SESSION, true));
   <link rel="stylesheet" href="dist/css/ynm-footer.css">
     <link rel="stylesheet" href="dist/css/ynm-bal.css">
 	<link rel="stylesheet" href="dist/css/ynm-index.css">
-	<link rel="stylesheet" href="dist/css/<?= $page ?>.css">
+	<link rel="stylesheet" href="css/<?= $page ?>.css">
 
+<style>
 
+</style>
 </head>
+
 <body >
   <!-- Sidebar -->
   <nav id="layoutSidenav_nav" aria-label="sidebar">
     <div class="sb-sidenav">
       <div class="px-3 mb-3">
-    <a href="" class="d-flex align-items-center text-decoration-none">
+    <a href="/" class="d-flex align-items-center text-decoration-none">
       <img src="dist/img/favicon-32x32.png" alt="YnM-Go Logo" class="brand-image img-circle elevation-3" style="opacity: .8">
       <span class="nav-link-text fs-5 fw-semibold">YnM-Go</span>
     </a>
@@ -62,25 +88,61 @@ error_log('SESSION at page load: ' . print_r($_SESSION, true));
               <span class="nav-link-text">YnM-Go Status</span>
             </a>
           </li>
-          <li class="nav-item">
-            <a href="#a" class="nav-link" data-page="a" data-title="Oldal A">
-              <span class="sb-nav-link-icon"><i class="fa-solid fa-file-lines"></i></span>
-              <span class="nav-link-text">Oldal A</span>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a href="#b" class="nav-link" data-page="b" data-title="Oldal B">
-              <span class="sb-nav-link-icon"><i class="fa-solid fa-file-lines"></i></span>
-              <span class="nav-link-text">Oldal B</span>
-            </a>
-          </li>
-          <li class="nav-item mt-2">
-            <div class="small text-muted px-3 sb-sidenav-menu-heading">Beállítások</div>
-            <a href="#settings" class="nav-link" data-page="settings" data-title="Beállítások">
-              <span class="sb-nav-link-icon"><i class="fa-solid fa-gear"></i></span>
-              <span class="nav-link-text">Beállítások</span>
-            </a>
-          </li>
+		  
+		  
+<li class="nav-item">
+    <div class="small text-muted px-3 sb-sidenav-menu-heading">Users & Channels</div>
+    
+    <?php if ($isLoggedIn): ?>
+		<a href="#ynmusers" class="nav-link" data-page="ynmusers" data-title="YnM Users">
+			<span class="sb-nav-link-icon">👥</span><span class="nav-link-text">Users</span></a>
+        
+		<a href="#ynmuserschannels" class="nav-link" data-page="ynmuserschannels" data-title="User Channels">
+            <span class="sb-nav-link-icon">👨‍💻</span><span class="nav-link-text">Users Access</span></a>
+        
+		<a href="#ynmchannels" class="nav-link" data-page="ynmchannels" data-title="Channels">
+			<span class="sb-nav-link-icon">#️⃣</span><span class="nav-link-text">Channels</span></a>
+    
+    <?php else: ?>
+		<a href="#" class="nav-link disabled" title="Login required 🔐" data-bs-title="Login Required  🔐" data-bs-toggle="tooltip" >
+			<span class="sb-nav-link-icon">👥</span><span class="nav-link-text">Users (🔐)</span></a>
+       
+		<a href="#" class="nav-link disabled tooltip-wrapper" title="Login required 🔐" data-bs-title="Login Required  🔐" data-bs-toggle="tooltip" >
+			<span class="sb-nav-link-icon">👨‍💻</span><span class="nav-link-text">Users Access (🔐)</span></a>
+		<a href="#" class="nav-link disabled" title="Login required 🔐" data-bs-title="Login Required  🔐" data-bs-toggle="tooltip" >
+			<span class="sb-nav-link-icon">#️⃣</span><span class="nav-link-text">Channels (🔐)</span></a>
+    <?php endif; ?>
+</li>
+
+		  
+<li class="nav-item">
+    <div class="small text-muted px-3 sb-sidenav-menu-heading">Settings</div>
+    <?php if ($isLoggedIn): ?>
+        <a href="#ynmprofile" class="nav-link" data-page="ynmprofile" data-title="Profile">
+            <span class="sb-nav-link-icon">🪪</span>
+            <span class="nav-link-text">Profile</span>
+        </a>
+        <a href="#ynmdatabase" class="nav-link" data-page="ynmdatabase" data-title="YnM-Go Database">
+            <span class="sb-nav-link-icon">🗃️</span>
+            <span class="nav-link-text">Database</span>
+        </a>
+        <a href="#ynmlogs" class="nav-link" data-page="ynmlogs" data-title="YnM-Go Logs">
+            <span class="sb-nav-link-icon">📝</span>
+            <span class="nav-link-text">Logs</span>
+        </a>
+    <?php else: ?>
+		<a href="#" class="nav-link disabled"  title="Login required 🔐" data-bs-title="Login Required  🔐" data-bs-toggle="tooltip" >
+			<span class="sb-nav-link-icon">🪪</span><span class="nav-link-text">Profile (🔐)</span></a>
+			
+		<a href="#" class="nav-link disabled"  title="Login required 🔐" data-bs-title="Login Required  🔐" data-bs-toggle="tooltip" >
+			<span class="sb-nav-link-icon">🗃️</span><span class="nav-link-text">Database (🔐)</span></a>
+		<a href="#" class="nav-link disabled"  title="Login required 🔐" data-bs-title="Login Required  🔐" data-bs-toggle="tooltip" >
+			<span class="sb-nav-link-icon">📝</span> <span class="nav-link-text">Logs (🔐)</span></a>
+    
+	<?php endif; ?>
+</li>
+
+
         </ul>
       </div>
     </div>
@@ -130,6 +192,8 @@ error_log('SESSION at page load: ' . print_r($_SESSION, true));
       
     </div>
   </div>
+  
+  
   <!-- Main content -->
   <div id="layoutSidenav_content">
     <main class="page-content container-fluid" id="mainContent">
@@ -139,11 +203,29 @@ error_log('SESSION at page load: ' . print_r($_SESSION, true));
     </main>
   </div>
 
-  <!-- Footer -->
 
-  
-<!-- Modal -->
-<div class="modal fade" id="staticBackdrop" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLabel" aria-hidden="true">
+
+      <!-- Footer -->
+
+
+  <footer id="ynmFooter">
+    <div class="container-fluid d-flex justify-content-between">
+
+        <div class="footer-left">
+
+            <p class="footer-small">Made with ❤️ for IRC community</p>
+        </div>
+        <div class="footer-center">
+            <p>&copy; 2012 - <?= date('Y') ?> YnM-Go - Admin Panel v2.3</p>
+        </div>
+        <div class="footer-right">
+            <span class="footer-status"><a href="https://ynm.hu" data-page="YnM"  data-title="YnM"  target="_blank"rel="noopener noreferrer">YnM</a></span>
+        </div>
+    </div>
+  </footer>
+
+	<!-- Modal -->
+  <div class="modal fade" id="staticBackdrop" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLabel" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
@@ -198,54 +280,19 @@ error_log('SESSION at page load: ' . print_r($_SESSION, true));
     </div>
   </div>
 </div>
-  <footer id="ynmFooter">
-    <div class="container-fluid d-flex justify-content-between">
 
-        <div class="footer-left">
+<script src="dist/js/popper.min.js"></script>
+<script src="dist/js/bootstrap.bundle.min.js"></script>
+<script src="dist/js/ynm-full-b-w.js"></script>
+<script src="dist/js/ynm-login.js"></script>
 
-            <p class="footer-small">Made with ❤️ for IRC community</p>
-        </div>
-        <div class="footer-center">
-            <p>&copy; 2012 - <?= date('Y') ?> YnM-Go - Admin Panel v2.3</p>
-        </div>
-        <div class="footer-right">
-            <span class="footer-status"><a href="https://ynm.hu" data-page="YnM"  data-title="YnM"  target="_blank"rel="noopener noreferrer">YnM</a></span>
-        </div>
-    </div>
-  </footer>
-  <!-- Bootstrap + JS -->
-  <script src="dist/js/bootstrap.bundle.min.js"></script>
-    <script src="dist/js/ynm-full-b-w.js"></script>
-  <script>
-  document.querySelector('a[href="https://ynm.hu"]').addEventListener('click', function(e) {
-    e.stopPropagation(); // Megállítja az esemény továbbterjedését
-    e.preventDefault(); // Megakadályozza a default viselkedést
-    window.open(this.href, '_blank', 'noopener,noreferrer');
-});
-</script>
-<script>
-function logout() {
-    if (confirm('Are you sure you want to logout?')) {
-        fetch('/api/api.php?action=logout', {
-            method: 'POST'
-        })
-        .then(response => response.json())
-        .then(result => {
-            if (result.success) {
-                window.location.href = 'index.php';
-            }
-        });
-    }
-}
-</script>
+<script src="dist/js/ynm-loader.js"></script>
+<script src="dist/js/ynm-oldal.js"></script>
+<script src="js/main.js"></script>
+<script src="dist/js/chart.js"></script>
+<script src="js/<?= $page ?>.js"></script>
+<script src="dist/js/ynm-mob-link-log.js"></script>
 
 
- <script src="dist/js/ynm-login.js"></script>
-  <!-- content-loader (keep your existing script) -->
-  <script src="dist/js/ynm-loader.js"></script>
-    <script src="dist/js/ynm-oldal.js"></script>
-	<script src="js/main.js"></script>
-	<script src="js/<?= $page ?>.js"></script>
-	<script src="dist/js/ynm-mobile-toggle.js"></script>
 </body>
 </html>

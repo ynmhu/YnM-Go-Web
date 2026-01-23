@@ -7,11 +7,11 @@ ini_set('display_errors', 1);
 date_default_timezone_set('Europe/Budapest');
 
 define('API_BASE_URL', 'https://ynm-go.ynm.hu/');
-define('BOT_API_URL', 'http://192.168.0.150:2525/api');
+define('BOT_API_URL', 'http://192.168.0.150:4466/api');
 define('CONSOLE_CHANNEL', '#YnM');
 
 // Session konfiguráció
-define('SESSION_LIFETIME', 86400);
+define('SESSION_LIFETIME', 3600);
 define('SESSION_NAME', 'YNM_ADMIN_SESSION');
 
 // Szerepkörök és jogosultságok
@@ -24,7 +24,7 @@ define('ROLES', [
         'database' => true,
         'logs' =>true,
         'plugins' => true,
-        'profile' => true
+        'ynmprofile' => true
     ],
     'admin' => [
         'dashboard' => true,
@@ -34,7 +34,7 @@ define('ROLES', [
         'database' => true,
         'logs' => true,
         'plugins' => true,
-        'profile' => true
+        'ynmprofile' => true
     ],
     'mod' => [
         'dashboard' => true,
@@ -44,7 +44,7 @@ define('ROLES', [
         'database' => true,
         'logs' => true,
         'plugins' => true,
-        'profile' => true
+        'ynmprofile' => true
     ],
     'vip' => [
         'dashboard' => true,
@@ -54,7 +54,7 @@ define('ROLES', [
         'database' => true,
         'logs' => true,
         'plugins' => true,
-        'profile' => true
+        'ynmprofile' => true
     
      ],
     'user' => [
@@ -65,7 +65,7 @@ define('ROLES', [
         'database' => true,
         'logs' => true,
         'plugins' => true,
-        'profile' => true
+        'ynmprofile' => true
     ]
 ]);
 
@@ -108,6 +108,8 @@ function getClientIP() {
 
 // ✅ Bot API helper függvény - JAVÍTOTT VERZIÓ
 function callBotAPI($method, $endpoint, $data = null) {
+	
+	
     // Endpoint már tartalmazza az /api/ prefix-et (pl. /api/users) or starts with '/'
     $base = rtrim(BOT_API_URL, '/');
     $path = ltrim($endpoint, '/');

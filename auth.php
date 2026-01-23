@@ -148,9 +148,19 @@ function logout() {
 
 // Jogosultság ellenőrzés oldal eléréséhez
 function canAccessPage($page) {
-        if (!isLoggedIn()) {
+    if ($page === 'ynm') {
+        return true;
+    }
+    
+    if (!isLoggedIn()) {
         return false;
     }
+    
+    // ✅ Special case: profile mindenki láthatja
+    if ($page === 'ynmprofile') {
+        return true;
+    }
+    
     $globalOnlyPages = ['bot_control', 'system_settings'];
     if (in_array($page, $globalOnlyPages)) {
         $globalRole = $_SESSION['role'] ?? 'user';
@@ -255,27 +265,53 @@ function canAccessPageEffective($page) {
         return false;
     }
 
+    // SPECIALIS ESET: profil oldal - mindenki láthatja
+    if ($page === 'ynmprofile') {
+        return true; // ✅ Minden bejelentkezett user láthatja a saját profilját
+    }
+
     $effectiveRole = getEffectiveRole();
 
     // Permission matrix effective role alapján
     $effectivePermissions = [
         'owner' => [
-            'users' => true, 'dashboard' =>  true, 'channels' => true, 'channel_users' => true, 'logs' => true, 'bot_control' => true, 'database' => true, 'settings' => true,  'profile' => true
+            'users' => true, 'dashboard' =>  true, 'channels' => true, 
+            'channel_users' => true, 'logs' => true, 'bot_control' => true, 
+            'database' => true, 'settings' => true, 'profile' => true,
+            'ynmprofile' => true, // ✅ Hozzáadva
+            'plugins' => true
         ],
         'admin' => [
-            'users' => true, 'dashboard' =>  true, 'channels' => true, 'channel_users' => true, 'logs' => true, 'bot_control' => true, 'database' => true, 'settings' => true,  'profile' => true
+            'users' => true, 'dashboard' =>  true, 'channels' => true, 
+            'channel_users' => true, 'logs' => true, 'bot_control' => true, 
+            'database' => true, 'settings' => true, 'profile' => true,
+            'ynmprofile' => true, // ✅ Hozzáadva
+            'plugins' => true
         ],
         'mod' => [
-            'users' => true, 'dashboard' =>  true, 'channels' => true, 'channel_users' => true, 'logs' => true, 'bot_control' => true, 'database' => true, 'settings' => true,  'profile' => true
+            'users' => true, 'dashboard' =>  true, 'channels' => true, 
+            'channel_users' => true, 'logs' => true, 'bot_control' => false, 
+            'database' => true, 'settings' => false, 'profile' => true,
+            'ynmprofile' => true, // ✅ Hozzáadva
+            'plugins' => false
         ],
         'vip' => [
-            'users' => true, 'dashboard' =>  true, 'channels' => true, 'channel_users' => true, 'logs' => true, 'bot_control' => true, 'database' => true, 'settings' => true,  'profile' => true
+            'users' => false, 'dashboard' =>  true, 'channels' => true, 
+            'channel_users' => true, 'logs' => true, 'bot_control' => false, 
+            'database' => true, 'settings' => false, 'profile' => true,
+            'ynmprofile' => true, // ✅ Hozzáadva
+            'plugins' => false
         ],
         'user' => [
-            'users' => true, 'dashboard' =>  true, 'channels' => true, 'channel_users' => true, 'logs' => true, 'bot_control' => true, 'database' => true, 'settings' => true,  'profile' => true
+            'users' => false, 'dashboard' =>  true, 'channels' => false, 
+            'channel_users' => false, 'logs' => false, 'bot_control' => false, 
+            'database' => true, 'settings' => false, 'profile' => true,
+            'ynmprofile' => true, // ✅ Hozzáadva
+            'plugins' => false
         ]
     ];
-     return $effectivePermissions[$effectiveRole][$page] ?? false;
+    
+    return $effectivePermissions[$effectiveRole][$page] ?? false;
 }
 
 // Új: Globális role csak (bot control, system settings)

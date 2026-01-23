@@ -1,10 +1,16 @@
 // bot-stats.js// bot-stats.js
 
+if (window.ynmBotStatsLoaded) {
+  console.log('⏭️ YnM already loaded');
+  if (window.initBotStatsPage) window.initBotStatsPage();
+  // Stop further execution
+} else {
+  window.ynmBotStatsLoaded = true;
+
+// A többi kód FOLYTATÓDIK normálisan...
 let lastUpdate = null;
-
-const MANUAL_COOLDOWN_MS = 1 * 60 * 1000; // 5 perc
+const MANUAL_COOLDOWN_MS = 1 * 60 * 1000;
 const LS_KEY_LAST_MANUAL = 'botStats:lastManualRefreshAt';
-
 function botStatsDomReady() {
   return !!(document.getElementById('refreshBtn') && document.getElementById('botName'));
 }
@@ -249,6 +255,17 @@ async function loadBotStats(source = 'auto') {
     updateAllBotStats(response.stats);
     lastUpdate = new Date();
     
+    // Chart frissítése - JAVÍTVÁ: response.stats használata
+    if (response.stats?.network_traffic) {
+        setTimeout(() => {
+            if (!window.trafficChart) {
+                window.trafficChart = new TrafficChart();
+            } else if (window.trafficChart.handleUpdate) {
+                window.trafficChart.handleUpdate(response.stats.network_traffic);
+            }
+        }, 300);
+    }
+    
     // Sikeres frissítés jelzése manuális esetén
     if (source === 'manual') {
       showNotification('Adatok sikeresen frissítve!', 'success');
@@ -415,7 +432,6 @@ function initBotStatsPage() {
   // Add the styles
   addFormattedArrayStyles();
   addChannelsStyles();
-  ensureChartIsAfterStats();
   
   const refreshBtn = document.getElementById('refreshBtn');
   if (refreshBtn && !refreshBtn.dataset.bound) {
@@ -425,33 +441,18 @@ function initBotStatsPage() {
         await loadBotStats('manual');
       } finally {
         refreshBtn.disabled = false;
-        
-        // Újra ellenőrizzük a chart pozíciót frissítés után
-        setTimeout(ensureChartIsAfterStats, 50);
       }
     });
     refreshBtn.dataset.bound = '1';
   }
 
-  // oldal betöltéskor frissít (nem limitáljuk)
+  // oldal betöltéskor frissít
   loadBotStats('auto');
-  
-  // Dupla ellenőrzés időzítéssel
-  setTimeout(ensureChartIsAfterStats, 300);
-  setTimeout(ensureChartIsAfterStats, 1000);
   
   return true;
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  initBotStatsPage();
-});
-
-window.initBotStatsPage = initBotStatsPage;
-window.loadBotStats = loadBotStats;
-
-
-// YNM Traffic Chart - Tiszta verzió
+// Módosítsd a TrafficChart osztályt
 class TrafficChart {
     constructor() {
         this.chart = null;
@@ -461,8 +462,8 @@ class TrafficChart {
         this.totalHours = 24;
         this.container = null;
         
-        //console.log('📊 Traffic Chart initializing...');
-        this.init();
+        // Azonnal inicializáljuk
+        this.setup();
     }
     
     init() {
@@ -1187,21 +1188,11 @@ function ensureChartIsAfterStats() {
 // Initialize
 let trafficChart = null;
 
-document.addEventListener('DOMContentLoaded', () => {
-    //console.log('🚀 DOM ready, starting traffic chart...');
-    trafficChart = new TrafficChart();
-});
-
-// Global API
-window.updateTrafficChart = function(stats) {
-    if (stats?.network_traffic && trafficChart) {
-        trafficChart.handleUpdate(stats.network_traffic);
-    }
-};
 
 // Error handling
 window.addEventListener('error', (e) => {
     console.error('❌ Traffic chart error:', e.error);
 });
 
-//console.log('🚀 Traffic chart module loaded');
+console.log('🚀 Traffic chart module loaded');
+}
