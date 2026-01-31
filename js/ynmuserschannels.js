@@ -1,47 +1,48 @@
 //js/ynmuserschannels.js - Channel Users management (JOGOSULTSÁG ALAPÚ + SAJÁT CSATORNÁK)
 
-let channelUsersData = [];
-let myChannels = [];  
-let myChannelsList = [];
-let usersForFilter = [];
-let currentUserRole = 'vip'; // Session role
-let currentUsername = '';
+window.YnmUsersChannels = window.YnmUsersChannels || {
+  channelUsersData: [],
+  myChannels: [],
+  myChannelsList: [],
+  usersForFilter: [],
+  currentUserRole: 'user',
+  currentUsername: ''
+};
+
+var S = window.YnmUsersChannels;// shortcut
 
 // ✅ JAVÍTOTT VÁLTOZAT
 async function callChannelUsersAPI(action, data = {}, method = 'POST') {
-    try {
-        const url = 'api/api.php';
-        const requestOptions = {
-            method: method,
-            headers: {
-                'Accept': 'application/json'
-            },
-            credentials: 'include'
-        };
-        
-        // Ha GET, akkor URL paraméterek
-        if (method === 'GET') {
-            const params = new URLSearchParams({ action, ...data });
-            const fullUrl = `${url}?${params}`;
-            console.log(`📡 GET: ${fullUrl}`);
-            
-            const response = await fetch(fullUrl, requestOptions);
-            return await handleResponse(response);
-        }
-        
-        // Ha POST/PUT/DELETE, akkor JSON body
-        requestOptions.headers['Content-Type'] = 'application/json';
-        requestOptions.body = JSON.stringify({ action, ...data });
-        
-        console.log(`📡 ${method}: ${url}`, data);
-        
-        const response = await fetch(url, requestOptions);
-        return await handleResponse(response);
-        
-    } catch (error) {
-        console.error(`❌ API call failed for ${action}:`, error.message);
-        throw error;
+  try {
+    const url = '/api/api.php';
+    const requestOptions = {
+      method,
+      headers: { 'Accept': 'application/json' },
+      credentials: 'include'
+    };
+
+    if (method === 'GET') {
+      const params = new URLSearchParams({ action, ...data });
+      const fullUrl = `${url}?${params}`;
+      console.log(`📡 GET: ${fullUrl}`);
+       const response = await fetch(`${url}?action=${encodeURIComponent(action)}`, requestOptions);
+      return await handleResponse(response);
     }
+
+    // POST/PUT/DELETE
+    requestOptions.headers['Content-Type'] = 'application/json';
+    requestOptions.body = JSON.stringify({ action, ...data });
+
+    const fullUrl = `${url}?action=${encodeURIComponent(action)}`;
+    console.log(`📡 ${method}: ${fullUrl}`, { action, ...data });
+
+    const response = await fetch(fullUrl, requestOptions);
+    return await handleResponse(response);
+
+  } catch (error) {
+    console.error(`❌ API call failed for ${action}:`, error.message);
+    throw error;
+  }
 }
 
 // Helper function for response handling
@@ -56,135 +57,156 @@ async function handleResponse(response) {
     
     const result = await response.json();
     
-    if (!response.ok) {
-        throw new Error(result.error || `HTTP ${response.status}`);
-    }
+	if (!response.ok) {
+	  throw new Error(result.message || result.error || `HTTP ${response.status}`);
+	}
     
     return result;
 }
 async function loadChannelUsers() {
-	try {
-        const result = await callChannelUsersAPI('channel_users_list', {}, 'GET');
-        if (result.success) {
-            channelUsersData = result.channel_users || [];
-            renderChannelUsers(channelUsersData);
-            document.getElementById('channelUserCount').textContent = result.stats?.total || 0;
-            
-            // Mentjük a felhasználó szerepét
-            if (result.stats?.user_role) {
-                currentUserRole = result.stats.user_role;
-                localStorage.setItem('userRole', currentUserRole);
-                updateUIForRole();
-            }
-        } else {
-            tbody.innerHTML = '<tr><td colspan="9" class="error">Nem sikerült betölteni a csatorna felhasználókat</td></tr>';
-        }
-    } catch (error) {
-        tbody.innerHTML = '<tr><td colspan="9" class="error">Hiba történt a betöltés során</td></tr>';
-        console.error('Channel users load error:', error);
+  const tbody = document.getElementById('channelUsersTableBody');
+
+  try {
+    const result = await callChannelUsersAPI('channel_users_list', {}, 'GET');
+
+    if (result.success) {
+      channelUsersData = result.channel_users || [];
+      renderChannelUsers(channelUsersData);
+
+      document.getElementById('channelUserCount').textContent = result.stats?.total || 0;
+
+      if (result.stats?.user_role) {
+        currentUserRole = result.stats.user_role;
+        localStorage.setItem('userRole', currentUserRole);
+        updateUIForRole();
+      }
+    } else {
+      if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="error">Nem sikerült betölteni</td></tr>';
     }
+  } catch (error) {
+    if (tbody) tbody.innerHTML = '<tr><td colspan="9" class="error">Hiba történt a betöltés során</td></tr>';
+    console.error('Channel users load error:', error);
+  }
 }
 
-document.addEventListener('DOMContentLoaded', async function() {
-    console.log('DOM loaded, initializing channel users...');
-    await loadUserInfo();
-    await loadMyChannelsForDropdown();  
-    await loadUsersForDropdown();
-    await loadChannelUsers();  
-    setupEventListeners();
-    updateUIForRole();
-});
+window.initYnmuserschannels = async function initYnmuserschannels() {
+  console.log('initYnmuserschannels()');
+
+  if (!document.getElementById('channelUsersTableBody')) {
+    console.warn('channelUsersTableBody not found');
+    return;
+  }
+
+  await loadUserInfo();
+  await loadMyChannelsForDropdown();
+  await loadUsersForDropdown();
+  await loadChannelUsers();
+  setupEventListeners();
+  updateUIForRole();
+};
 async function loadUserInfo() {
-    try {
-        // Username és role már a localStorage-ban van a checkSession()-ből
-        currentUsername = localStorage.getItem('username') || '';
-        currentUserRole = localStorage.getItem('userRole') || 'vip';
-        
-        console.log('Current user role:', currentUserRole, 'Username:', currentUsername);
-        
-        // Dashboard-ról csak a hostmask-ot kérjük le (ha kell)
-        const result = await apiCall('dashboard', {}, 'GET');
-        if (result.success) {
-            if (result.user_info && result.user_info.hostmask) {
-                localStorage.setItem('userHostmask', result.user_info.hostmask);
-                console.log('User hostmask:', result.user_info.hostmask);
-            }
-        }
-    } catch (error) {
-        console.error('Failed to load user info:', error);
-    }
-}
+  try {
+    // username a session check-ből
+    currentUsername = localStorage.getItem('username') || '';
 
+    // dashboardból jön a global + effective role
+    const result = await apiCall('dashboard', {}, 'GET');
+    if (result.success) {
+
+      const globalRole = (result.stats?.global_role || 'user').toLowerCase();
+      const effectiveRole = (result.stats?.effective_role || globalRole).toLowerCase();
+
+      // ✅ külön tároljuk
+      localStorage.setItem('globalRole', globalRole);
+      localStorage.setItem('effectiveRole', effectiveRole);
+
+      // a page permissionhöz (channel-users oldalon) az effective role kell
+      currentUserRole = effectiveRole;
+      localStorage.setItem('userRole', effectiveRole);
+
+      console.log('✅ Roles set:', { globalRole, effectiveRole, username: currentUsername });
+
+      // hostmask
+      if (result.user_info?.hostmask) {
+        localStorage.setItem('userHostmask', result.user_info.hostmask);
+      }
+
+      // csatorna role lista (opcionális)
+      if (result.stats?.user_channels) {
+        localStorage.setItem('userChannels', JSON.stringify(result.stats.user_channels));
+      }
+    } else {
+      // fallback
+      currentUserRole = localStorage.getItem('userRole') || 'user';
+      console.log('Dashboard not success, fallback role:', currentUserRole);
+    }
+
+  } catch (error) {
+    console.error('Failed to load user info:', error);
+    currentUserRole = localStorage.getItem('userRole') || 'user';
+  }
+}
 // CSAK SAJÁT CSATORNÁK betöltése a dropdown-hoz
 async function loadMyChannelsForDropdown() {
-    try {
-        console.log('Loading channels for role:', currentUserRole);
-        
-        // ✅ JAVÍTOTT API hívás
-        const result = await apiCall('channel_users', {action: 'channel_users_list'}, 'GET');
-        
-        if (result.success) {
-            const allVisibleUsers = result.channel_users || [];
-            const currentNick = localStorage.getItem('username') || '';
-            
-            console.log('All visible users:', allVisibleUsers);
-            
-            // ✅ JAVÍTVA: Normalizált nick lekérése
-            const myChannelsList = [];
-            const channelMap = {};
-            
-            // 1. Saját csatornák összegyűjtése
-            allVisibleUsers.forEach(cu => {
-                const nick = cu.user_nick || cu.nick || '';
-                const channel = cu.channel_name || cu.channel || '';
-                
-                if (nick === currentNick && channel && !myChannelsList.includes(channel)) {
-                    myChannelsList.push(channel);
-                }
-                
-                // Owner/Admin esetén: összes egyedi csatorna
-                if ((currentUserRole === 'owner' || currentUserRole === 'admin') && channel && !channelMap[channel]) {
-                    channelMap[channel] = true;
-                }
-            });
-            
-            console.log('My channels list:', myChannelsList);
-            
-            // 2. Csatornák listája a dropdown-hoz
-            const uniqueChannels = [];
-            
-            if (currentUserRole === 'owner' || currentUserRole === 'admin') {
-                // Owner/Admin: összes csatorna
-                Object.keys(channelMap).forEach(channel => {
-                    uniqueChannels.push({ name: channel });
-                });
-            } else {
-                // Mod/VIP: csak saját csatornák
-                myChannelsList.forEach(channel => {
-                    if (channel) {
-                        uniqueChannels.push({ name: channel });
-                    }
-                });
-            }
-            
-            myChannels = uniqueChannels;
-            console.log('Channels for dropdown:', myChannels);
-            
-            populateChannelDropdowns();
-            
-            // ✅ Fontos: mentjük a myChannelsList-et a permissions-hez
-            window.myChannelsList = myChannelsList;
-            
-        } else {
-            console.error('Failed to load channel users list:', result.error);
-            myChannels = [];
-            populateChannelDropdowns();
-        }
-    } catch (error) {
-        console.error('Failed to load channels:', error);
-        myChannels = [];
-        populateChannelDropdowns();
+  try {
+    console.log('Loading channels for role:', currentUserRole);
+
+    const result = await callChannelUsersAPI('channel_users_list', {}, 'GET');
+
+    if (!result.success) {
+      console.error('Failed to load channel users list:', result.error);
+      myChannels = [];
+      populateChannelDropdowns();
+      return;
     }
+
+    const allVisibleUsers = result.channel_users || [];
+    const currentNick = (localStorage.getItem('username') || '').trim();
+    const globalRole = (localStorage.getItem('globalRole') || 'user').toLowerCase();
+    const canSeeAllChannels = (globalRole === 'owner' || globalRole === 'admin');
+
+    const myChannelsList = [];
+    const channelMap = {}; // csak akkor használjuk, ha canSeeAllChannels
+
+    // 1) Saját csatornák összegyűjtése + (opcionális) összes csatorna map
+    allVisibleUsers.forEach(cu => {
+      const nick = (cu.user_nick || cu.nick || '').trim();
+      const channel = (cu.channel_name || cu.channel || '').trim();
+      if (!channel) return;
+
+      // saját csatornák
+      if (nick === currentNick && !myChannelsList.includes(channel)) {
+        myChannelsList.push(channel);
+      }
+
+      // global admin/owner: összes csatorna
+      if (canSeeAllChannels && !channelMap[channel]) {
+        channelMap[channel] = true;
+      }
+    });
+
+    console.log('My channels list:', myChannelsList);
+
+    // 2) Dropdown listát építjük
+    const uniqueChannels = [];
+
+    if (canSeeAllChannels) {
+      Object.keys(channelMap).forEach(ch => uniqueChannels.push({ name: ch }));
+    } else {
+      myChannelsList.forEach(ch => uniqueChannels.push({ name: ch }));
+    }
+
+    myChannels = uniqueChannels;
+    window.myChannelsList = myChannelsList;
+
+    console.log('Channels for dropdown:', myChannels);
+    populateChannelDropdowns();
+
+  } catch (error) {
+    console.error('Failed to load channels:', error);
+    myChannels = [];
+    populateChannelDropdowns();
+  }
 }
 // Fallback owner csatornák betöltésére
 async function loadChannelsForOwnerFallback() {
@@ -192,7 +214,7 @@ async function loadChannelsForOwnerFallback() {
         // ❌ ROSSZ: await apiCall('channel_users_list', {}, 'GET');
         // ✅ JÓ: await apiCall('channel_users_api.php?action=channel_users_list', {}, 'GET');
         
-        const result = await apiCall('channel_users', {action: 'channel_users_list'}, 'GET');
+     const result = await callChannelUsersAPI('channel_users_list', {}, 'GET');
         
         if (result.success) {
             const uniqueChannels = [];
@@ -219,7 +241,7 @@ async function loadChannelsForOwnerFallback() {
 // Nem owner felhasználók csatornái - JAVÍTVA
 async function loadChannelsForNonOwner() {
     try {
-        const result = await apiCall('channel_users_api.php?action=channel_users_list', {}, 'GET');
+        const result = await callChannelUsersAPI('channel_users_list', {}, 'GET');
         
         if (result.success) {
             const allVisibleUsers = result.channel_users || [];
@@ -255,6 +277,7 @@ async function loadUsersForDropdown() {
         const result = await apiCall('users_list', {}, 'GET');
         if (result.success) {
             usersForFilter = result.users || [];
+			window.YnmUsersChannels.usersForFilter = usersForFilter; 
             populateUserDropdowns();
         }
     } catch (error) {
@@ -312,7 +335,19 @@ function populateChannelDropdowns() {
 }
 
 
+function autoFillHostmaskFromSelectedUser() {
+  const nick = document.getElementById('newUserNick')?.value;
+  if (!nick) return;
 
+  const users = window.YnmUsersChannels.usersForFilter || usersForFilter || [];
+  const u = users.find(x => (x.nick || x.username) === nick);
+  if (!u) return;
+
+  const hostInput = document.getElementById('newUserHostmask');
+  if (hostInput) {
+    hostInput.value = u.hostmask || '';
+  }
+}
 function populateUserDropdowns() {
     const filterSelect = document.getElementById('filterUser');
     const addSelect = document.getElementById('newUserNick');
@@ -546,57 +581,69 @@ function canEditField(currentRole, currentUser, targetNick, targetRole, field, t
 }
 
 async function updateChannelUserAutoMode(id, field, value, targetNick, targetRole, targetChannel) {
-    try {
-        // Előellenőrzés a frontenden (felhasználóbarát)
-        const currentUsername = localStorage.getItem('username') || 'unknown';
-        
-        if (currentUserRole === 'vip' && targetNick !== currentUsername) {
-            showNotification('❌ VIP felhasználóként csak a saját beállításaidat módosíthatod', 'error');
-            setTimeout(() => loadChannelUsers(), 500);
-            return;
-        }
-        
-        if (currentUserRole === 'mod' && targetNick !== currentUsername && targetRole !== 'vip') {
-            showNotification('❌ Moderátorként csak VIP felhasználók beállításait módosíthatod', 'error');
-            setTimeout(() => loadChannelUsers(), 500);
-            return;
-        }
-        
-        if (currentUserRole === 'mod' && targetNick !== currentUsername && field !== 'auto_voice') {
-            showNotification(`❌ Moderátorként VIP felhasználóknál csak az "Auto Voice" engedélyezhető`, 'error');
-            setTimeout(() => loadChannelUsers(), 500);
-            return;
-        }
-        
-        // ✅ API hívás - POST metódussal, JSON body-val
-        const result = await apiCall('channel_users_update', {
-            id: id,
-            field: field,
-            value: value
-        }, 'POST');  // ← Fontos: POST metódus megadása
-        
-        if (result.success) {
-            showNotification(result.message || '✅ Beállítás frissítve', 'success');
-            
-            // ✅ TELJES ÚJRATÖLTÉS az adatbázisból
-            await loadChannelUsers();
-        } else {
-            showNotification('❌ ' + result.error, 'error');
-            setTimeout(() => loadChannelUsers(), 1000);
-        }
-    } catch (error) {
-        console.error('Update failed:', error);
-        
-        let errorMessage = 'Ismeretlen hiba történt';
-        if (error.message.includes('403')) {
-            errorMessage = 'Nincs jogosultságod ehhez a művelethez vagy nincs közös csatornád a felhasználóval';
-        } else if (error.message.includes('Network')) {
-            errorMessage = 'Hálózati hiba történt';
-        }
-        
-        showNotification('❌ ' + errorMessage, 'error');
-        setTimeout(() => loadChannelUsers(), 1000);
+  try {
+    const currentUsername = localStorage.getItem('username') || 'unknown';
+
+    // Előellenőrzések (maradhatnak)
+    if (currentUserRole === 'vip' && targetNick !== currentUsername) {
+      showNotification('❌ VIP felhasználóként csak a saját beállításaidat módosíthatod', 'error');
+      return;
     }
+
+    if (currentUserRole === 'mod' && targetNick !== currentUsername && targetRole !== 'vip') {
+      showNotification('❌ Moderátorként csak VIP felhasználók beállításait módosíthatod', 'error');
+      return;
+    }
+
+    if (currentUserRole === 'mod' && targetNick !== currentUsername && field !== 'auto_voice') {
+      showNotification('❌ Moderátorként VIP felhasználóknál csak az "Auto Voice" engedélyezhető', 'error');
+      return;
+    }
+
+    // API hívás
+    const result = await callChannelUsersAPI('channel_users_update', { id, field, value }, 'POST');
+
+    if (result.success) {
+      showNotification(result.message || '✅ Beállítás frissítve', 'success');
+
+      // 1) Frissítsük a lokális adatot
+      const idx = channelUsersData.findIndex(u => String(u.id) === String(id));
+      if (idx !== -1) {
+        // nálad a renderben "cu.auto_voice" truthy-ra épít, ezért 0/1-re tesszük
+        channelUsersData[idx][field] = value ? 1 : 0;
+      }
+
+      // 2) (Opcionális) jelöld meg vizuálisan a sort, hogy frissült
+      const row = document.querySelector(`tr[data-id="${id}"]`);
+      if (row) {
+        row.classList.add('table-success');
+        setTimeout(() => row.classList.remove('table-success'), 600);
+      }
+
+      // NEM töltjük újra a teljes listát
+      return;
+    }
+
+    showNotification('❌ ' + (result.error || 'Update failed'), 'error');
+
+    // Hibánál se muszáj reload, de ha szeretnéd: csak akkor
+    // await loadChannelUsers();
+
+  } catch (error) {
+    console.error('Update failed:', error);
+
+    let errorMessage = 'Ismeretlen hiba történt';
+    if (String(error.message).includes('403')) {
+      errorMessage = 'Nincs jogosultságod ehhez a művelethez vagy nincs közös csatornád a felhasználóval';
+    } else if (String(error.message).includes('Network')) {
+      errorMessage = 'Hálózati hiba történt';
+    }
+
+    showNotification('❌ ' + errorMessage, 'error');
+
+    // Ha hálózati hiba miatt elszállhatott az állapot, itt lehet reload:
+    // await loadChannelUsers();
+  }
 }
 async function deleteChannelUser(id, targetNick) {
     const currentUsername = localStorage.getItem('username') || 'unknown';
@@ -626,7 +673,7 @@ async function deleteChannelUser(id, targetNick) {
     }
     
     try {
-        const result = await apiCall('channel_users_delete', { id: id });
+       const result = await callChannelUsersAPI('channel_users_delete', { id }, 'POST');
         if (result.success) {
             showNotification(result.message || '✅ Felhasználó eltávolítva a csatornából', 'success');
             loadChannelUsers();
@@ -649,7 +696,7 @@ async function handleAddChannelUser(e) {
         auto_op: document.getElementById('newUserAutoOp').checked,
         auto_voice: document.getElementById('newUserAutoVoice').checked,
         auto_halfop: document.getElementById('newUserAutoHalfOp').checked,
-        role: 'vip' // Alapértelmezett
+        role: document.getElementById('newUserRole')?.value || 'user'
     };
     
     if (!formData.nick || !formData.channel) {
@@ -664,7 +711,7 @@ async function handleAddChannelUser(e) {
     }
     
     try {
-        const result = await apiCall('channel_users_add', formData);
+        const result = await callChannelUsersAPI('channel_users_add', formData, 'POST');
         if (result.success) {
             showNotification(result.message || '✅ Felhasználó hozzáadva a csatornához!', 'success');
             closeModal('addChannelUserModal');
@@ -705,6 +752,10 @@ function setupEventListeners() {
     if (addForm) {
         addForm.addEventListener('submit', handleAddChannelUser);
     }
+	const newUserNick = document.getElementById('newUserNick');
+	if (newUserNick) {
+	  newUserNick.addEventListener('change', autoFillHostmaskFromSelectedUser);
+	}
 }
 
 function updateUIForRole() {

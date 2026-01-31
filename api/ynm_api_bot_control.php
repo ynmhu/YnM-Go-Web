@@ -1,6 +1,7 @@
 <?php
-// api/bot_control_api.php
-
+// api/ynm_api_bot_control.php
+error_log('BOT CONTROL api_token exists? ' . (isset($_SESSION['api_token']) ? 'YES' : 'NO'));
+error_log('BOT CONTROL api_token value: ' . ($_SESSION['api_token'] ?? 'NULL'));
 // Csak owner szerepkör használhatja
 if ($_SESSION['role'] !== 'owner') {
     error_log("Access denied - not owner");
@@ -60,7 +61,10 @@ try {
         }
         
         logActivity('❌ BOT CONTROL ERROR', "Command: {$command}, HTTP: {$httpCode}");
-        jsonResponse(['success' => false, 'error' => 'Bot API error: ' . $httpCode, 'response' => $response], 500);
+        jsonResponse(
+	  ['success' => false, 'error' => 'Bot API error: ' . $httpCode, 'response' => $response],
+	  $httpCode ?: 500
+	);
     }
     
 } catch (Exception $e) {

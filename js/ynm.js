@@ -1190,9 +1190,5 @@ let trafficChart = null;
 
 
 // Error handling
-window.addEventListener('error', (e) => {
-    console.error('❌ Traffic chart error:', e.error);
-});
-
 console.log('🚀 Traffic chart module loaded');
 }

@@ -1,9 +1,31 @@
 <?php
-session_start();
+if (session_status() === PHP_SESSION_NONE) session_start();
 
+function hasRole($requiredRole) {
+    // Ellenőrizd, hogy be van-e jelentkezve
+    if (!isset($_SESSION['username']) || $_SESSION['username'] === 'Guest') {
+        return false;
+    }
+    
+    // Az aktuális user role-ja
+    $userRole = $_SESSION['role'] ?? 'vip';
+    
+    // Role hierarchy
+    $roleHierarchy = [
+        'user' => 0,
+        'vip' => 1,
+        'mod' => 2,
+        'admin' => 3,
+        'owner' => 4
+    ];
+    
+    // Ellenőrzés
+    $requiredLevel = $roleHierarchy[$requiredRole] ?? 0;
+    $userLevel = $roleHierarchy[$userRole] ?? 0;
+    
+    return $userLevel >= $requiredLevel;
+}
 if (!isset($_SESSION['username']) || $_SESSION['username'] === 'Guest') {
-    // ÜRES VÁLASZ - SEMMIT SEM KÜLDÜNK VISSZA
-    echo '';
     exit;
 }
 ?>
@@ -67,6 +89,15 @@ if (!isset($_SESSION['username']) || $_SESSION['username'] === 'Guest') {
             <label><input type="checkbox" id="newUserAutoHalfOp"> AutoHalfOp</label>
             <label><input type="checkbox" id="newUserAutoOp"> AutoOp</label>
             <button type="submit" class="btn btn-success">Add</button>
+			<label>Role:
+  <select name="role" id="newUserRole">
+    <option value="user">user</option>
+    <option value="vip" selected>vip</option>
+    <option value="mod">mod</option>
+    <option value="admin">admin</option>
+    <option value="owner">owner</option>
+  </select>
+</label>
         </form>
     </div>
 </div>

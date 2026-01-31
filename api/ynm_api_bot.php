@@ -13,18 +13,34 @@ switch ($action) {
                     'server_uptime' => $result['stats']['server_uptime'] ?? '0d 0h 0m',
                     'network_traffic' => $result['stats']['network_traffic'] ?? '↑ 0.0 MB ↓ 0.0 MB'
                 ]);
-            } else {
-                jsonResponse([
-                    'success' => false,
-                    'error' => $result['error'] ?? 'Failed to fetch bot stats'
-                ], 500);
-            }
-        } catch (Exception $e) {
-            jsonResponse([
-                'success' => false,
-                'error' => 'Bot API error: ' . $e->getMessage()
-            ], 500);
-        }
+				} else {
+					jsonResponse([
+						'success' => true,
+						'stats' => [
+							'connected' => 0,
+							'nick' => '',
+							'server' => '',
+							'server_uptime' => '0d 0h 0m',
+							'network_traffic' => '↑ 0.0 MB ↓ 0.0 MB',
+							'last_updated' => date('Y-m-d H:i:s'),
+						],
+						'warning' => $result['error'] ?? 'Failed to fetch bot stats'
+					], 200);
+				}
+		} catch (Exception $e) {
+			jsonResponse([
+				'success' => true,
+				'stats' => [
+					'connected' => 0,
+					'nick' => '',
+					'server' => '',
+					'server_uptime' => '0d 0h 0m',
+					'network_traffic' => '↑ 0.0 MB ↓ 0.0 MB',
+					'last_updated' => date('Y-m-d H:i:s'),
+				],
+				'warning' => 'Bot API error: ' . $e->getMessage()
+			], 200);
+		}
         break;
         
     default:

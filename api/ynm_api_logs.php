@@ -4,7 +4,7 @@
 // VÁLTOZÓK INICIALIZÁLÁSA
 $currentUser = $_SESSION['username'] ?? 'unknown';
 $currentUserId = $_SESSION['user_id'] ?? 0;
-$currentRole = $_SESSION['role'] ?? 'vip';
+$currentRole = $_SESSION['role'] ?? 'user';
 
 
 // Helper függvény - szerepkör alapú szűrés
@@ -23,7 +23,7 @@ function filterLogsByRole($logs, $currentRole, $currentUser) {
         
         if ($currentRole === 'admin') {
             // Admin lát: vip, mod, admin és saját tevékenységeket
-            $canView = in_array($logUserRole, ['vip', 'mod', 'admin']) || $logUsername === $currentUser;
+            $canView = in_array($logUserRole, ['user', 'vip', 'mod', 'admin']) || $logUsername === $currentUser;
         } elseif ($currentRole === 'mod') {
             // Mod csak VIP-eket és saját tevékenységét látja
             $canView = ($logUserRole === 'vip') || $logUsername === $currentUser;

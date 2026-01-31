@@ -5,7 +5,7 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 date_default_timezone_set('Europe/Budapest');
-
+define('BOT_API_SERVICE_TOKEN', 'NemtudomMiLegyen2025benMikorMarMindentLehet');
 define('API_BASE_URL', 'https://ynm-go.ynm.hu/');
 define('BOT_API_URL', 'http://192.168.0.150:4466/api');
 define('CONSOLE_CHANNEL', '#YnM');
@@ -146,21 +146,23 @@ function callBotAPI($method, $endpoint, $data = null) {
         'User-Agent: YnM-Web-Admin/3.0'
     ];
     
-    // Token hozzáadása, ha van session-ben
-    if (isset($_SESSION['api_token'])) {
-        $headers[] = 'Authorization: Bearer ' . $_SESSION['api_token'];
-        error_log("🔑 Using API token: " . (strlen($_SESSION['api_token']) > 20 ? substr($_SESSION['api_token'], 0, 20) . '...' : $_SESSION['api_token']));
-    } else {
-        error_log("⚠️ No API token in session!");
-    }
-    
+
+		// ✅ Token: session token vagy service token fallback
+		$token = $_SESSION['api_token'] ?? BOT_API_SERVICE_TOKEN ?? null;
+
+		if (!empty($token)) {
+			$headers[] = 'Authorization: Bearer ' . $token;
+			error_log("🔑 Using token (first 20): " . substr($token, 0, 20) . "...");
+		} else {
+			error_log("❌ No token available (no session api_token AND no BOT_API_SERVICE_TOKEN)");
+		}
     // If there's payload, send as JSON body (works for POST/PUT/DELETE)
     if ($data !== null) {
         $jsonData = json_encode($data);
         curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonData);
         $headers[] = 'Content-Length: ' . strlen($jsonData);
     }
-    
+    error_log("➡️ Outgoing headers: " . json_encode($headers));
     curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
     
     $response = curl_exec($ch);

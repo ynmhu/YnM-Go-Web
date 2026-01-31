@@ -2,10 +2,28 @@
 
 let channelsData = [];
 
-document.addEventListener('DOMContentLoaded', function() {
-    loadChannels();
-    setupEventListeners();
-});
+function getGlobalRole() {
+  return (localStorage.getItem('userRole') || 'user').toLowerCase();
+}
+
+function canEditChannelsGlobally() {
+  const r = getGlobalRole();
+  return r === 'owner' || r === 'admin';
+}
+
+window.initYnmchannels = function initYnmchannels() {
+  console.log('initYnmchannels()');
+
+  // biztosíték: csak akkor induljon, ha a page HTML bent van
+  const tbody = document.getElementById('channelsTableBody');
+  if (!tbody) {
+    console.warn('channelsTableBody not found - page HTML not loaded?');
+    return;
+  }
+
+  loadChannels();
+  setupEventListeners();
+};
 
 function setupEventListeners() {
     const refreshBtn = document.getElementById('refreshChannelsBtn');
@@ -33,6 +51,10 @@ async function loadChannels() {
 }
 
 function renderChannels(channels) {
+	const canEdit = canEditChannelsGlobally();
+	const disabledAttr = canEdit ? '' : 'disabled';
+	const titleAttr = canEdit ? '' : 'Csak global owner/admin módosíthat csatornát';
+	const editableAttr = canEdit ? 'true' : 'false';
     const tbody = document.getElementById('channelsTableBody');
     if (!tbody) return;
     if (channels.length === 0) {
@@ -116,22 +138,36 @@ async function updateChannelField(channelId, field, element) {
 }
 
 async function updateAutoMode(channelId, field, value) {
-    try {
-        const result = await apiCall('channels_update', {
-            id: channelId,
-            field: field,
-            value: value ? 1 : 0
-        });
-        if (result.success) {
-            showNotification('Auto mode updated', 'success');
-        } else {
-            showNotification(result.error || 'Update failed', 'error');
-            loadChannels();
-        }
-    } catch (error) {
-        showNotification('Failed to update auto mode', 'error');
-        loadChannels();
+  try {
+    const result = await apiCall('channels_update', {
+      id: channelId,
+      field: field,
+      value: value ? 1 : 0
+    });
+
+    if (result.success) {
+      showNotification('✅ Auto mode updated', 'success');
+      return;
     }
+
+    // ha a backend visszaad success:false-ot (ritkább)
+    showNotification('❌ ' + (result.error || 'Update failed'), 'error');
+    loadChannels();
+
+  } catch (error) {
+    const msg = String(error.message || error);
+
+    // ✅ 403: jogosultság hiba -> szép üzenet
+    if (msg.includes('Csak owner/admin módosíthat csatornát') || msg.includes('403')) {
+      showNotification('⚠️ Csak global OWNER vagy ADMIN módosíthat csatorna beállításokat.', 'warning');
+      loadChannels(); // visszaállítja a checkboxot a helyes állapotra
+      return;
+    }
+
+    // egyéb hiba
+    showNotification('❌ Hiba: ' + msg, 'error');
+    loadChannels();
+  }
 }
 
 async function deleteChannel(channelId) {
@@ -156,51 +192,57 @@ async function deleteChannel(channelId) {
 }
 
 // Add Channel Modal
-document.getElementById('showAddChannelBtn').onclick = function() {
+// Add Channel Modal (null-safe)
+const showAddChannelBtn = document.getElementById('showAddChannelBtn');
+if (showAddChannelBtn) {
+  showAddChannelBtn.onclick = function () {
     openModal('addChannelModal');
-};
+  };
+}
 
-document.getElementById('addChannelForm').onsubmit = async function(e) {
+const addChannelForm = document.getElementById('addChannelForm');
+if (addChannelForm) {
+  addChannelForm.onsubmit = async function (e) {
     e.preventDefault();
-    
+
     const formData = {
-        name: document.getElementById('newChannelName').value.trim(),
-        owner: document.getElementById('newChannelOwner').value.trim(),
-        owner_hostmask: document.getElementById('newChannelHostmask').value.trim(),
-        auto_op: document.getElementById('newAutoOp').checked,
-        auto_voice: document.getElementById('newAutoVoice').checked,
-        auto_halfop: document.getElementById('newAutoHalfOp').checked
+      name: document.getElementById('newChannelName')?.value.trim(),
+      owner: document.getElementById('newChannelOwner')?.value.trim(),
+      owner_hostmask: document.getElementById('newChannelHostmask')?.value.trim(),
+      auto_op: document.getElementById('newAutoOp')?.checked || false,
+      auto_voice: document.getElementById('newAutoVoice')?.checked || false,
+      auto_halfop: document.getElementById('newAutoHalfOp')?.checked || false,
     };
-    
+
     if (!formData.name) {
-        showNotification('Channel name is required', 'error');
-        return;
+      showNotification('Channel name is required', 'error');
+      return;
     }
-    
+
     try {
-        const result = await apiCall('channels_add', formData);
-        if (result.success) {
-            let message = 'Channel added successfully';
-            if (result.bot_action) {
-                message += '\n🤖 ' + result.bot_action;
-            }
-            showNotification(message, 'success');
-            closeModal('addChannelModal');
-            document.getElementById('addChannelForm').reset();
-            loadChannels();
-        } else {
-            // Külön hibaüzenet a bot sikertelenségéhez
-            if (result.bot_success === false) {
-                showNotification(`Channel added but bot failed: ${result.bot_action}`, 'warning');
-                closeModal('addChannelModal');
-                document.getElementById('addChannelForm').reset();
-                loadChannels();
-            } else {
-                showNotification(result.error || 'Add failed', 'error');
-            }
+      const result = await apiCall('channels_add', formData);
+      if (result.success) {
+        let message = 'Channel added successfully';
+        if (result.bot_action) {
+          message += '\n🤖 ' + result.bot_action;
         }
+        showNotification(message, 'success');
+        closeModal('addChannelModal');
+        addChannelForm.reset();
+        loadChannels();
+      } else {
+        if (result.bot_success === false) {
+          showNotification(`Channel added but bot failed: ${result.bot_action}`, 'warning');
+          closeModal('addChannelModal');
+          addChannelForm.reset();
+          loadChannels();
+        } else {
+          showNotification(result.error || 'Add failed', 'error');
+        }
+      }
     } catch (err) {
-        showNotification('Error: ' + err.message, 'error');
-        console.error('Add channel error:', err);
+      showNotification('Error: ' + err.message, 'error');
+      console.error('Add channel error:', err);
     }
-};
+  };
+}

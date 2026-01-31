@@ -28,7 +28,7 @@ function canViewUser($currentRole, $targetRole) {
         'admin' => ['admin', 'mod', 'vip', 'user'],
         'mod'   => ['mod', 'vip', 'user'],
         'vip'   => ['vip', 'user'],
-		'user'   => ['vip', 'user']
+		'user'   => ['user']
     ];
     
     return in_array($targetRole, $viewMatrix[$currentRole] ?? []);

@@ -102,6 +102,12 @@ if (!canAccessPage($page)) {
         
 		<a href="#ynmchannels" class="nav-link" data-page="ynmchannels" data-title="Channels">
 			<span class="sb-nav-link-icon">#️⃣</span><span class="nav-link-text">Channels</span></a>
+		<a href="#ynmchannelstopic" class="nav-link" data-page="ynmchannelstopic" data-title="Channels Topic">
+			<span class="sb-nav-link-icon">#️⃣</span><span class="nav-link-text">Channels Topic</span></a>
+		<a href="#ynmchannelsmode" class="nav-link" data-page="ynmchannelsmode" data-title="Channels Mode">
+			<span class="sb-nav-link-icon">#️⃣</span><span class="nav-link-text">Channels Mods</span></a>
+		<a href="#ynmchannelsban" class="nav-link" data-page="ynmchannelsban" data-title="Channels Bans">
+			<span class="sb-nav-link-icon">#️⃣</span><span class="nav-link-text">Channels Bans</span></a>
     
     <?php else: ?>
 		<a href="#" class="nav-link disabled" title="Login required 🔐" data-bs-title="Login Required  🔐" data-bs-toggle="tooltip" >
@@ -111,6 +117,12 @@ if (!canAccessPage($page)) {
 			<span class="sb-nav-link-icon">👨‍💻</span><span class="nav-link-text">Users Access (🔐)</span></a>
 		<a href="#" class="nav-link disabled" title="Login required 🔐" data-bs-title="Login Required  🔐" data-bs-toggle="tooltip" >
 			<span class="sb-nav-link-icon">#️⃣</span><span class="nav-link-text">Channels (🔐)</span></a>
+		<a href="#" class="nav-link disabled" title="Login required 🔐" data-bs-title="Login Required  🔐" data-bs-toggle="tooltip" >
+			<span class="sb-nav-link-icon">#️⃣</span><span class="nav-link-text">Channels Topic(🔐)</span></a>
+		<a href="#" class="nav-link disabled" title="Login required 🔐" data-bs-title="Login Required  🔐" data-bs-toggle="tooltip" >
+			<span class="sb-nav-link-icon">#️⃣</span><span class="nav-link-text">Channels Mods(🔐)</span></a>
+		<a href="#" class="nav-link disabled" title="Login required 🔐" data-bs-title="Login Required  🔐" data-bs-toggle="tooltip" >
+			<span class="sb-nav-link-icon">#️⃣</span><span class="nav-link-text">Channels Bans(🔐)</span></a>
     <?php endif; ?>
 </li>
 
@@ -122,10 +134,17 @@ if (!canAccessPage($page)) {
             <span class="sb-nav-link-icon">🪪</span>
             <span class="nav-link-text">Profile</span>
         </a>
+		
+		<a href="#ynmbotcontrol" class="nav-link" data-page="ynmbotcontrol" data-title="Bot Control">
+            <span class="sb-nav-link-icon">🤖</span>
+            <span class="nav-link-text">Bot Control</span>
+        </a>
+			
         <a href="#ynmdatabase" class="nav-link" data-page="ynmdatabase" data-title="YnM-Go Database">
             <span class="sb-nav-link-icon">🗃️</span>
             <span class="nav-link-text">Database</span>
         </a>
+		
         <a href="#ynmlogs" class="nav-link" data-page="ynmlogs" data-title="YnM-Go Logs">
             <span class="sb-nav-link-icon">📝</span>
             <span class="nav-link-text">Logs</span>
@@ -133,9 +152,13 @@ if (!canAccessPage($page)) {
     <?php else: ?>
 		<a href="#" class="nav-link disabled"  title="Login required 🔐" data-bs-title="Login Required  🔐" data-bs-toggle="tooltip" >
 			<span class="sb-nav-link-icon">🪪</span><span class="nav-link-text">Profile (🔐)</span></a>
-			
+
+		<a href="#" class="nav-link disabled"  title="Login required 🔐" data-bs-title="Login Required  🔐" data-bs-toggle="tooltip" >
+			<span class="sb-nav-link-icon">🪪</span><span class="nav-link-text">Bot Control (🔐)</span></a>		
+		
 		<a href="#" class="nav-link disabled"  title="Login required 🔐" data-bs-title="Login Required  🔐" data-bs-toggle="tooltip" >
 			<span class="sb-nav-link-icon">🗃️</span><span class="nav-link-text">Database (🔐)</span></a>
+			
 		<a href="#" class="nav-link disabled"  title="Login required 🔐" data-bs-title="Login Required  🔐" data-bs-toggle="tooltip" >
 			<span class="sb-nav-link-icon">📝</span> <span class="nav-link-text">Logs (🔐)</span></a>
     

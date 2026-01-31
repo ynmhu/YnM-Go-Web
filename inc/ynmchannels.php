@@ -1,9 +1,31 @@
 <?php
-session_start();
+if (session_status() === PHP_SESSION_NONE) session_start();
 
+function hasRole($requiredRole) {
+    // Ellenőrizd, hogy be van-e jelentkezve
+    if (!isset($_SESSION['username']) || $_SESSION['username'] === 'Guest') {
+        return false;
+    }
+    
+    // Az aktuális user role-ja
+    $userRole = $_SESSION['role'] ?? 'user';
+    
+    // Role hierarchy
+    $roleHierarchy = [
+        'user' => 0,
+        'vip' => 1,
+        'mod' => 2,
+        'admin' => 3,
+        'owner' => 4
+    ];
+    
+    // Ellenőrzés
+    $requiredLevel = $roleHierarchy[$requiredRole] ?? 0;
+    $userLevel = $roleHierarchy[$userRole] ?? 0;
+    
+    return $userLevel >= $requiredLevel;
+}
 if (!isset($_SESSION['username']) || $_SESSION['username'] === 'Guest') {
-    // ÜRES VÁLASZ - SEMMIT SEM KÜLDÜNK VISSZA
-    echo '';
     exit;
 }
 ?>
@@ -26,9 +48,12 @@ if (!isset($_SESSION['username']) || $_SESSION['username'] === 'Guest') {
   <tbody id="channelsTableBody"></tbody>
 </table>
 </div>
-<button id="showAddChannelBtn" class="btn btn-info">➕ Add Channel</button>
+<?php if (hasRole('admin')): ?>
+  <button id="showAddChannelBtn" class="btn btn-info">➕ Add Channel</button>
+<?php endif; ?>
 
 <!-- Modal (can be <div class="modal" ...> as usual) -->
+<?php if (hasRole('admin')): ?>
 <div id="addChannelModal" class="modal">
   <div class="modal-content">
     <span class="close" onclick="closeModal('addChannelModal')">&times;</span>
@@ -44,3 +69,4 @@ if (!isset($_SESSION['username']) || $_SESSION['username'] === 'Guest') {
     </form>
   </div>
 </div>
+<?php endif; ?>

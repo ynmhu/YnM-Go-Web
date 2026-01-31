@@ -1,14 +1,28 @@
 <?php
 // api/api.php - API Router és központi endpoint
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
+ini_set('display_errors', 0); // API-n NE!
+ini_set('display_startup_errors', 0);
 error_reporting(E_ALL);
+
 session_start();
+
 require_once '../config.php';
 require_once '../auth.php';
 
+error_log('API SESSION at start: ' . print_r($_SESSION, true));
 header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+$allowed = [
+  'https://ynm.hu',
+  'https://ynm-go.ynm.hu',
+  'https://bot.ynm.hu',
+];
+
+if ($origin && in_array($origin, $allowed, true)) {
+  header("Access-Control-Allow-Origin: $origin");
+  header('Access-Control-Allow-Credentials: true');
+}
+header('Vary: Origin');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
 
@@ -91,6 +105,22 @@ switch ($action) {
         requirePageAccess('channels');
         include 'ynm_api_channels.php';
         break;
+
+	// ===== CHANNELS MODE =====
+	case 'channels_mode':
+	case 'channels_mode_update':
+	case 'channels_mode_reset':
+	case 'channels_mode_stats':
+		requirePageAccess('channels');
+		include 'ynm_api_channels_mode.php';
+		break;	
+		
+	// ===== CHANNELS TOPIC =====
+	case 'channels_topic':
+	case 'channels_topic_update':
+		requirePageAccess('channels');
+		include 'ynm_api_channels_topic.php';
+		break;
     
     // ===== CHANNEL USERS =====
     case 'my_channels':
@@ -114,7 +144,7 @@ switch ($action) {
             jsonResponse(['success' => false, 'error' => 'Only owners can control the bot'], 403);
         }
         $_POST['command'] = str_replace('bot_', '', $action);
-        include 'ynm_api_botcontrol.php';
+        include 'ynm_api_bot_control.php';
         break;
     
     // ===== DATABASE (PASSWORDS) =====
@@ -242,4 +272,3 @@ switch ($action) {
             'hint' => 'Use action=info to see available endpoints'
         ], 400);
 }
-?>

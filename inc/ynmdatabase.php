@@ -2,8 +2,6 @@
 session_start();
 
 if (!isset($_SESSION['username']) || $_SESSION['username'] === 'Guest') {
-    // ÜRES VÁLASZ - SEMMIT SEM KÜLDÜNK VISSZA
-    echo '';
     exit;
 }
 ?>

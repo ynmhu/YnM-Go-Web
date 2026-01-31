@@ -1,46 +1,33 @@
 <?php
 if (session_status() === PHP_SESSION_NONE) {
-    // Biztonságos session beállítások
-    ini_set('session.cookie_httponly', 1);
-    ini_set('session.use_only_cookies', 1);
-    ini_set('session.cookie_samesite', 'Strict');
 
-    // Only enable cookie_secure when connection is HTTPS or forwarded proto is https.
     $isHttps = (!empty($_SERVER['HTTPS']) && strtolower($_SERVER['HTTPS']) !== 'off')
-               || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && strtolower($_SERVER['HTTP_X_FORWARDED_PROTO']) === 'https');
+      || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && strtolower($_SERVER['HTTP_X_FORWARDED_PROTO']) === 'https');
 
-    ini_set('session.cookie_secure', $isHttps ? 1 : 0);
+    // Cookie policy
+    ini_set('session.cookie_httponly', '1');
+    ini_set('session.use_only_cookies', '1');
+    ini_set('session.cookie_secure', $isHttps ? '1' : '0');
 
-		if (defined('SESSION_LIFETIME')) {
-			ini_set('session.gc_maxlifetime', SESSION_LIFETIME);
-			
-			// ✅ JAVÍTOTT: Domain név tisztítása (port nélkül)
-			$domain = $_SERVER['HTTP_HOST'] ?? '';
-			// Távolítsd el a portot, ha van
-			$domain = preg_replace('/:\d+$/', '', $domain);
-			
-			session_set_cookie_params([
-				'lifetime' => SESSION_LIFETIME,
-				'path' => '/',
-				'domain' => '', // ✅ VAGY hagyd üresen - automatikus lesz
-				'secure' => $isHttps ? true : false,
-				'httponly' => true,
-				'samesite' => 'Strict'
-			]);
-		}
+    session_name(SESSION_NAME);
 
-    if (defined('SESSION_NAME')) {
-        session_name(SESSION_NAME);
-    }
+    session_set_cookie_params([
+      'lifetime' => SESSION_LIFETIME,
+      'path' => '/',
+      'domain' => '.ynm.hu',
+      'secure' => $isHttps,
+      'httponly' => true,
+      'samesite' => 'Lax'
+    ]);
 
     session_start();
 
-    // Session hijacking védelem
     if (!isset($_SESSION['ip_address'])) {
         $_SESSION['ip_address'] = $_SERVER['REMOTE_ADDR'] ?? '';
         $_SESSION['user_agent'] = $_SERVER['HTTP_USER_AGENT'] ?? '';
     }
 }
+
 
 // Bejelentkezés ellenőrzés
 function isLoggedIn() {
@@ -112,7 +99,7 @@ function login($username, $password) {
                 error_log("Effective role calculation failed: " . $e->getMessage());
                 $_SESSION['effective_role'] = $result['role']; // fallback
             }
-			session_write_close();
+			//session_write_close();
             return [
                 'success' => true,
                 'message' => 'Login successful'

@@ -4,7 +4,7 @@
 
 try {
     $currentUser = $_SESSION['username'] ?? 'unknown';
-    $globalRole = $_SESSION['role'] ?? 'user';
+    $globalRole = $_SESSION['role'] ?? 'vip';
 
     // Cache: keep counts for a short while to reduce Bot API calls
     $cacheTtl = 15; // seconds

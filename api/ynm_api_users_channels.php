@@ -7,7 +7,6 @@ $currentUser = $_SESSION['username'] ?? 'unknown';
 $currentRole = $_SESSION['role'] ?? 'vip';
 
 // Helper függvények
-// Helper függvények
 function canModifyChannelUser($currentRole, $currentUser, $targetNick, $targetRole, $channel) {
     // Saját magát mindenki módosíthatja
     if ($targetNick === $currentUser) {
@@ -39,29 +38,81 @@ function canModifyChannelUser($currentRole, $currentUser, $targetNick, $targetRo
 
 
 function filterChannelUsersByRole($channelUsers, $currentRole, $currentUser) {
-    $filtered = [];
-    
+    $currentRole = strtolower(trim($currentRole));
+    $currentUser = trim($currentUser);
+
+    $roleHierarchy = ['owner'=>5, 'admin'=>4, 'mod'=>3, 'vip'=>2, 'user'=>1];
+
+    // 1) Mely csatornákban milyen a currentUser szerepe?
+    $myChannelRole = []; // channel => role
     foreach ($channelUsers as $cu) {
-        $targetRole = $cu['user_role'] ?? $cu['role'] ?? 'vip';
+        $nick = $cu['user_nick'] ?? $cu['nick'] ?? '';
+        $channel = $cu['channel_name'] ?? $cu['channel'] ?? '';
+        if ($nick !== $currentUser || $channel === '') continue;
+
+        // itt a LOCAL role érdekel (channel_role), nem a global/effective
+        $r = strtolower(trim($cu['channel_role'] ?? ($cu['role'] ?? 'user')));
+
+        // ha több sorból jönne, a magasabbat tartsuk meg
+        $old = $myChannelRole[$channel] ?? 'user';
+        if (($roleHierarchy[$r] ?? 0) > ($roleHierarchy[$old] ?? 0)) {
+            $myChannelRole[$channel] = $r;
+        }
+    }
+
+    // 2) Szűrés
+    $filtered = [];
+
+    foreach ($channelUsers as $cu) {
         $targetNick = $cu['user_nick'] ?? $cu['nick'] ?? '';
-        
+        $channel = $cu['channel_name'] ?? $cu['channel'] ?? '';
+        if ($channel === '') continue;
+
+        $targetRole = strtolower(trim($cu['channel_role'] ?? ($cu['role'] ?? 'vip')));
+
+        // Owner globálisan mindent lát (ha így akarod)
         if ($currentRole === 'owner') {
             $filtered[] = $cu;
-        } elseif ($currentRole === 'admin') {
-            if (in_array($targetRole, ['admin', 'mod', 'vip'])) {
-                $filtered[] = $cu;
-            }
-        } elseif ($currentRole === 'mod') {
-            if (in_array($targetRole, ['mod', 'vip'])) {
-                $filtered[] = $cu;
-            }
-        } else { // VIP
+            continue;
+        }
+
+        // VIP/user: csak saját maga (és csak a saját csatornáiban)
+        if ($currentRole === 'vip' || $currentRole === 'user') {
             if ($targetNick === $currentUser) {
                 $filtered[] = $cu;
             }
+            continue;
+        }
+
+        // Admin/Mod: csak azokban a csatornákban láthat, ahol ő is benne van megfelelő role-lal
+        $myRoleHere = $myChannelRole[$channel] ?? null;
+        if ($myRoleHere === null) {
+            // nincs ebben a csatornában -> ne lássa
+            continue;
+        }
+
+        if ($currentRole === 'admin') {
+            // local admin: admin/mod/vip látható
+            if (in_array($targetRole, ['admin', 'mod', 'vip'], true)) {
+                $filtered[] = $cu;
+            }
+            continue;
+        }
+
+        if ($currentRole === 'mod') {
+            // local mod: mod/vip látható
+            if (in_array($targetRole, ['mod', 'vip'], true)) {
+                $filtered[] = $cu;
+            }
+            continue;
+        }
+
+        // fallback
+        if ($targetNick === $currentUser) {
+            $filtered[] = $cu;
         }
     }
-    
+
     return $filtered;
 }
 
@@ -153,76 +204,87 @@ try {
             break;
             
      // ✅ Channel Users listázása
-        case 'channel_users_list':
-            // Bot API hívás - minden channel user
-            $channelUsersData = callBotAPI('GET', '/channel-users');
-            
-            if ($channelUsersData === null) {
-                throw new Exception('Bot API is not responding');
+ case 'channel_users_list':
+    // 1) Bot API: összes channel_users
+    $channelUsersData = callBotAPI('GET', '/channel-users');
+
+    if ($channelUsersData === null) {
+        throw new Exception('Bot API is not responding');
+    }
+    if (!($channelUsersData['success'] ?? false)) {
+        throw new Exception($channelUsersData['error'] ?? 'Failed to fetch channel users');
+    }
+
+    $allChannelUsers = $channelUsersData['channel_users'] ?? [];
+
+    // 2) Bot API: globális users (role + hostmask stb.) – egyszer
+    $usersData = callBotAPI('GET', '/users');
+    $userRoleMap = [];
+    if ($usersData && isset($usersData['users'])) {
+        foreach ($usersData['users'] as $u) {
+            $nick = $u['username'] ?? $u['nick'] ?? '';
+            if ($nick !== '') {
+                $userRoleMap[$nick] = strtolower($u['role'] ?? 'user');
             }
-            
-            if (!($channelUsersData['success'] ?? false)) {
-                throw new Exception($channelUsersData['error'] ?? 'Failed to fetch channel users');
-            }
-            
-            $allChannelUsers = $channelUsersData['channel_users'] ?? [];
-            
-            // Fetch global users ONCE to avoid repeated calls
-            $usersData = callBotAPI('GET', '/users');
-            $userRoleMap = [];
-            if ($usersData && isset($usersData['users'])) {
-                foreach ($usersData['users'] as $u) {
-                    $nick = $u['username'] ?? $u['nick'] ?? '';
-                    if ($nick !== '') {
-                        $userRoleMap[$nick] = $u['role'] ?? 'vip';
-                    }
-                }
-            }
-    
-    // ✅ ÚJ: Channel-specific role-ok hozzáadása a globálishoz (optimize: reuse users map)
+        }
+    }
+
+    // 3) Enhanced lista összeállítása (global_role + channel_role + effective_role)
+    $roleHierarchy = ['owner' => 5, 'admin' => 4, 'mod' => 3, 'vip' => 2, 'user' => 1];
+
     $enhancedChannelUsers = [];
     foreach ($allChannelUsers as $cu) {
-        // 1. Alap user adatok
         $nick = $cu['nick'] ?? '';
-        $channelRole = $cu['role'] ?? 'vip';
         $channelName = $cu['channel'] ?? '';
-        
-        // 2. Globális role lekérése (from pre-fetched map)
-        $globalRole = $userRoleMap[$nick] ?? 'vip';
-        
-        // 3. ✅ VÉGLEGES ROLE: A MAGASABBAT VESSZÜK
-        $effectiveRole = $globalRole;
-        $roleHierarchy = ['owner' => 4, 'admin' => 3, 'mod' => 2, 'vip' => 1, 'user' => 0];
-        
-        $globalLevel = $roleHierarchy[$globalRole] ?? 0;
+
+        $channelRole = strtolower($cu['role'] ?? 'vip');
+        $globalRole  = $userRoleMap[$nick] ?? 'user';
+
+        $globalLevel  = $roleHierarchy[$globalRole] ?? 0;
         $channelLevel = $roleHierarchy[$channelRole] ?? 0;
-        
-        if ($channelLevel > $globalLevel) {
-            $effectiveRole = $channelRole;
-        }
-        
-        // 4. Enhanced adat hozzáadása
-        $enhancedCu = array_merge($cu, [
-            'user_nick' => $nick,
-            'channel_name' => $channelName,
-            'global_role' => $globalRole,
-            'channel_role' => $channelRole,
-            'effective_role' => $effectiveRole, // ✅ FONTOS!
-            'role' => $effectiveRole // Backward compatibility
+        $effectiveRole = ($channelLevel > $globalLevel) ? $channelRole : $globalRole;
+
+        $enhancedChannelUsers[] = array_merge($cu, [
+            'user_nick'      => $nick,
+            'channel_name'   => $channelName,
+            'global_role'    => $globalRole,
+            'channel_role'   => $channelRole,
+            'effective_role' => $effectiveRole,
+            'role'           => $effectiveRole, // backward compatibility
         ]);
-        
-        $enhancedChannelUsers[] = $enhancedCu;
     }
-    
-    // Szerepkör alapú szűrés már az enhanced adatokon
-    $filteredChannelUsers = filterChannelUsersByRole($enhancedChannelUsers, $currentRole, $currentUser);
-    
+
+    // 4) Current user "local max role" kiszámítása a listából (dashboard nélkül)
+    $effectiveRoleForFiltering = strtolower(trim($currentRole)); // globál fallback
+    $maxLevel = $roleHierarchy[$effectiveRoleForFiltering] ?? 0;
+
+    foreach ($enhancedChannelUsers as $row) {
+        $rowNick = $row['user_nick'] ?? $row['nick'] ?? '';
+        if ($rowNick !== $currentUser) continue;
+
+        // itt kifejezetten a channel_role érdekel (LOCAL jog)
+        $rowRole = strtolower(trim($row['channel_role'] ?? 'user'));
+        $lvl = $roleHierarchy[$rowRole] ?? 0;
+
+        if ($lvl > $maxLevel) {
+            $maxLevel = $lvl;
+            $effectiveRoleForFiltering = $rowRole;
+        }
+    }
+
+    // 5) Szerepkör alapú szűrés (a filter függvényed marad)
+    $filteredChannelUsers = filterChannelUsersByRole(
+        $enhancedChannelUsers,
+        $effectiveRoleForFiltering,
+        $currentUser
+    );
+
     jsonResponse([
         'success' => true,
         'channel_users' => $filteredChannelUsers,
         'stats' => [
             'total' => count($filteredChannelUsers),
-            'user_role' => $currentRole
+            'user_role' => $effectiveRoleForFiltering
         ]
     ]);
     break;
@@ -280,13 +342,13 @@ try {
                 'hostmask' => $hostmask,
                 'channel' => $channel,
                 'role' => $role,
-                'auto_op' => $autoOp ? 1 : 0,
-                'auto_voice' => $autoVoice ? 1 : 0,
-                'auto_halfop' => $autoHalfop ? 1 : 0,
+				'auto_op' => (bool)$autoOp,
+				'auto_voice' => (bool)$autoVoice,
+				'auto_halfop' => (bool)$autoHalfop,
                 'added_by' => $currentUser
             ];
             
-            $result = callBotAPI('POST', '/channel-users', $channelUserData);
+            $result = callBotAPI('POST', '/channel-users/add', $channelUserData);
             
             if ($result === null) {
                 throw new Exception('Bot API is not responding');
@@ -446,9 +508,13 @@ case 'channel_users_update':
 			$numericValue = ($value === true || $value === 'true' || $value === '1' || $value === 1) ? 1 : 0;
 
 			$updateData = [
-				'id' => $id,  // ← ID hozzáadva a body-hoz
-				'field' => $field,
-				'value' => $numericValue
+			  'id' => $id,
+			  'field' => $field,
+			  'value' => $numericValue,
+
+			  // ✅ Go API által elvárt auth mezők
+			  'current_user' => $_SESSION['username'] ?? $currentUser ?? 'unknown',
+			  'current_role' => $_SESSION['role'] ?? $currentRole ?? 'vip',
 			];
 
 			// POST /channel-users/update endpoint használata (Go bot API)
@@ -458,9 +524,23 @@ case 'channel_users_update':
                 throw new Exception('Bot API is not responding');
             }
             
-            if (!($result['success'] ?? false)) {
-                throw new Exception($result['error'] ?? 'Failed to update channel user');
-            }
+			if (!($result['success'] ?? false)) {
+				// ✅ a bot API küld error + message + details mezőket → add vissza őket
+				$status = 400;
+
+				if (($result['error'] ?? '') === 'Permission denied') {
+					$status = 403;
+				} elseif (($result['error'] ?? '') === 'User authentication required') {
+					$status = 401;
+				}
+
+				jsonResponse([
+					'success' => false,
+					'error'   => $result['error'] ?? 'Update failed',
+					'message' => $result['message'] ?? null,
+					'details' => $result['details'] ?? null,
+				], $status);
+			}
             
             $fieldName = ($field === 'auto_op') ? 'Auto OP (+o)' : 
                          (($field === 'auto_voice') ? 'Auto Voice (+v)' : 'Auto Halfop (+h)');
@@ -469,12 +549,19 @@ case 'channel_users_update':
             // Audit log
             logActivity('🔄', "Channel user #$id updated: $field = $numericValue");
             
-            jsonResponse([
-                'success' => true,
-                'message' => "✅ {$fieldName} sikeresen {$statusText}",
-                'field' => $field,
-                'value' => $value
-            ]);
+			jsonResponse([
+			  'success' => true,
+			  'message' => "✅ {$fieldName} sikeresen {$statusText}",
+			  'id'      => $id,
+			  'field'   => $field,
+			  'value'   => $numericValue,
+			  'target'  => [
+				  'nick'    => $targetNick,
+				  'channel' => $targetChannel,
+			  ],
+			  // opcionális: a Go válaszból is visszaadhatod
+			  'bot_action' => $result['bot_action'] ?? null
+			]);
             break;
             
         // ✅ Channel User törlése

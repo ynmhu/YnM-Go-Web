@@ -1,15 +1,37 @@
 <?php
-session_start();
+if (session_status() === PHP_SESSION_NONE) session_start();
 
+function hasRole($requiredRole) {
+    // Ellenőrizd, hogy be van-e jelentkezve
+    if (!isset($_SESSION['username']) || $_SESSION['username'] === 'Guest') {
+        return false;
+    }
+    
+    // Az aktuális user role-ja
+    $userRole = $_SESSION['role'] ?? 'user';
+    
+    // Role hierarchy
+    $roleHierarchy = [
+        'user' => 0,
+        'vip' => 1,
+        'mod' => 2,
+        'admin' => 3,
+        'owner' => 4
+    ];
+    
+    // Ellenőrzés
+    $requiredLevel = $roleHierarchy[$requiredRole] ?? 0;
+    $userLevel = $roleHierarchy[$userRole] ?? 0;
+    
+    return $userLevel >= $requiredLevel;
+}
 if (!isset($_SESSION['username']) || $_SESSION['username'] === 'Guest') {
-    // ÜRES VÁLASZ - SEMMIT SEM KÜLDÜNK VISSZA
-    echo '';
     exit;
 }
 ?>
 <div class="page-header">
     <h2>👥 Global Access</h2>
-    <button class="btn btn-primary" onclick="showAddUserModal()">➕ Add User</button>
+    <button class="btn btn-primary" id="addUserBtn">➕ Add User</button>
 </div>
 
 <!-- Keresés és szűrés -->
@@ -52,7 +74,6 @@ if (!isset($_SESSION['username']) || $_SESSION['username'] === 'Guest') {
         </tbody>
     </table>
 </div>
-<!-- Felhasználó adatai szerkesztő MODÁL -->
 <!-- Felhasználó adatai szerkesztő MODÁL -->
 <div id="userEditModal" class="modal">
   <div class="modal-content modal-large">

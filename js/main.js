@@ -33,6 +33,10 @@ const API_ENDPOINTS = {
     'channels_list_stats': 'channels_list_stats',    
     'channels_full_detail': 'channels_full_detail',      
     'channels_with_users': 'channels_with_users',    
+	    // Channels  Topic
+  'channels_topic': 'channels_topic',
+
+ 
     
     // Channel Users
     'channel_users_list': 'channel_users_list',
